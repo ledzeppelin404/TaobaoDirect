@@ -117,23 +117,7 @@ static NSString * const kUserAgreementAcceptedKey = @"com.wechat.tweak.user.agre
     // 禁用继续按钮，倒计时后启用
     self.continueAction.enabled = NO;
     
-    // 添加查看TG频道按钮 - 保持取消按钮样式但防止关闭弹窗
-    UIAlertAction *tgAction = [UIAlertAction 
-                               actionWithTitle:@"查看TG频道" 
-                               style:UIAlertActionStyleCancel 
-                               handler:^(UIAlertAction * _Nonnull action) {
-        // 跳转到TG频道
-        NSURL *telegramURL = [NSURL URLWithString:@"https://t.me/wjrlj"];
-        [[UIApplication sharedApplication] openURL:telegramURL options:@{} completionHandler:^(BOOL success) {
-            // 在返回后重新显示协议弹窗
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self showUserAgreementAlert];
-            });
-        }];
-    }];
-    
     [alertController addAction:self.continueAction];
-    [alertController addAction:tgAction];
     
     // 显示弹窗
     [self presentViewController:alertController animated:YES completion:^{
@@ -428,14 +412,8 @@ static NSString * const kUserAgreementAcceptedKey = @"com.wechat.tweak.user.agre
                                                   iconColor:[UIColor systemBlueColor]
                                                     detail:nil];
     
-    CSSettingItem *favoriteAuthItem = [CSSettingItem itemWithTitle:@"收藏验证"
-                                                        iconName:@"star.fill"
-                                                       iconColor:[UIColor systemYellowColor]
-                                                         detail:nil];
-    
     CSSettingSection *accountSection = [CSSettingSection sectionWithHeader:@"账号与安全" 
-                                                                   items:@[accountItem, 
-                                                                          favoriteAuthItem]];
+                                                                   items:@[accountItem]];
     
     // 界面定制组
     CSSettingItem *navigationTitleItem = [CSSettingItem itemWithTitle:@"顶栏信息" 
@@ -656,11 +634,6 @@ static NSString * const kUserAgreementAcceptedKey = @"com.wechat.tweak.user.agre
         else if ([item.title isEqualToString:@"游戏辅助"]) {
             CSGameCheatsViewController *gameCheatsVC = [[CSGameCheatsViewController alloc] initWithStyle:UITableViewStyleInsetGrouped];
             [self.navigationController pushViewController:gameCheatsVC animated:YES];
-        }
-        // 处理收藏验证点击
-        else if ([item.title isEqualToString:@"收藏验证"]) {
-            CSFavoriteSettingsViewController *favoriteVC = [[CSFavoriteSettingsViewController alloc] initWithStyle:UITableViewStyleInsetGrouped];
-            [self.navigationController pushViewController:favoriteVC animated:YES];
         }
         // 处理界面简化点击
         else if ([item.title isEqualToString:@"界面简化"]) {

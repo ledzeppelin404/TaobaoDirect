@@ -44,10 +44,10 @@ static NSString * const kTaobaoJumpEnabledKey = @"TaobaoJump_Enabled";
     // 功能开关
     __weak typeof(self) weakSelf = self;
     CSSettingItem *enableItem = [CSSettingItem switchItemWithTitle:@"启用淘口令跳转"
-                                                            detail:@"长按消息显示\"跳转淘宝\"菜单"
-                                                              icon:nil
-                                                                on:self.taobaoJumpEnabled
-                                                      toggleAction:^(BOOL isOn) {
+                                                          iconName:@"cart.fill"
+                                                         iconColor:[UIColor systemOrangeColor]
+                                                       switchValue:self.taobaoJumpEnabled
+                                                 valueChangedBlock:^(BOOL isOn) {
         weakSelf.taobaoJumpEnabled = isOn;
         [weakSelf saveSettings];
     }];
@@ -57,16 +57,14 @@ static NSString * const kTaobaoJumpEnabledKey = @"TaobaoJump_Enabled";
     
     // 使用说明
     CSSettingItem *descItem = [CSSettingItem itemWithTitle:@"使用说明"
-                                                    detail:@"长按聊天消息，在弹出菜单中选择\"跳转淘宝\"，自动复制内容并打开淘宝App"
-                                                      icon:nil
-                                              accessoryType:UITableViewCellAccessoryNone
-                                              selectionAction:nil];
+                                                  iconName:@"info.circle"
+                                                 iconColor:[UIColor systemBlueColor]
+                                                    detail:@"长按聊天消息，在弹出菜单中选择\"跳转淘宝\"，自动复制内容并打开淘宝App"];
     
     CSSettingItem *tipItem = [CSSettingItem itemWithTitle:@"温馨提示"
-                                                   detail:@"适用于淘口令、商品链接等需要在淘宝中打开的内容"
-                                                     icon:nil
-                                             accessoryType:UITableViewCellAccessoryNone
-                                             selectionAction:nil];
+                                                 iconName:@"lightbulb.fill"
+                                                iconColor:[UIColor systemYellowColor]
+                                                   detail:@"适用于淘口令、商品链接等需要在淘宝中打开的内容"];
     
     CSSettingSection *infoSection = [CSSettingSection sectionWithHeader:@"说明"
                                                                   items:@[descItem, tipItem]];
@@ -122,13 +120,6 @@ static NSString * const kTaobaoJumpEnabledKey = @"TaobaoJump_Enabled";
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    
-    CSSettingSection *section = self.sections[indexPath.section];
-    CSSettingItem *item = section.items[indexPath.row];
-    
-    if (item.selectionAction) {
-        item.selectionAction();
-    }
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {

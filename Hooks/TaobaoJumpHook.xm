@@ -6,7 +6,9 @@
 // 检查淘口令跳转功能是否启用
 static BOOL isTaobaoJumpEnabled() {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    return [defaults boolForKey:@"TaobaoJump_Enabled"];
+    BOOL enabled = [defaults boolForKey:@"TaobaoJump_Enabled"];
+    NSLog(@"[TaobaoJump] 功能状态: %@", enabled ? @"已启用" : @"未启用");
+    return enabled;
 }
 
 // 存储当前长按的消息内容
@@ -140,7 +142,10 @@ static void jumpToTaobaoWithText(NSString *text) {
 - (void)onLongTouch:(id)arg {
     %orig;
     
+    NSLog(@"[TaobaoJump] 检测到长按消息，当前内容: %@", currentLongPressedText);
+    
     if (!isTaobaoJumpEnabled()) {
+        NSLog(@"[TaobaoJump] 功能未启用，跳过");
         return;
     }
     
@@ -162,6 +167,29 @@ static void jumpToTaobaoWithText(NSString *text) {
     if (!alreadyExists) {
         [menuItems addObject:taobaoItem];
         menuController.menuItems = menuItems;
+        NSLog(@"[TaobaoJump] 已添加\"跳转淘宝\"菜单项，总菜单数: %lu", (unsigned long)menuItems.count);
+    } else {
+        NSLog(@"[TaobaoJump] \"跳转淘宝\"菜单项已存在");
+    }
+}
+
+// 实现 canPerformAction 来让菜单项显示
+- (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
+    if (isTaobaoJumpEnabled() && action == @selector(jumpToTaobaoAction:)) {
+        NSLog(@"[TaobaoJump] canPerformAction 返回 YES");
+        return YES;
+    }
+    return %orig;
+}
+
+// 实现跳转淘宝动作
+%new
+- (void)jumpToTaobaoAction:(id)sender {
+    NSLog(@"[TaobaoJump] 跳转淘宝动作被触发，内容: %@", currentLongPressedText);
+    if (currentLongPressedText && currentLongPressedText.length > 0) {
+        jumpToTaobaoWithText(currentLongPressedText);
+    } else {
+        NSLog(@"[TaobaoJump] 错误: 没有可用的消息内容");
     }
 }
 

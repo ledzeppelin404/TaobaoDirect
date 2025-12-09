@@ -7,14 +7,6 @@
 #define kTaobaoJumpEnabledKey @"TaobaoJump_Enabled"
 
 // 声明 WeChat 内部类
-@interface CommonMessageCellView : UIView
-- (id)m_viewModel;
-@end
-
-@interface BaseMessageViewModel : NSObject
-- (id)messageWrap;
-@end
-
 @interface CMessageWrap : NSObject
 - (NSString *)m_nsContent;
 @end
@@ -30,6 +22,11 @@
 - (void)setMenuItems:(NSArray *)items;
 @end
 
+// BaseMsgContentViewController - 消息内容视图控制器
+@interface BaseMsgContentViewController : UIViewController
+- (void)willShowMenuController:(id)controller inMsgWrap:(CMessageWrap *)msgWrap;
+@end
+
 // 全局变量
 static NSString *g_currentMessageContent = nil;
 
@@ -38,54 +35,31 @@ static BOOL isTaobaoJumpEnabled() {
     return [[NSUserDefaults standardUserDefaults] boolForKey:kTaobaoJumpEnabledKey];
 }
 
-// Hook CommonMessageCellView 来捕获消息内容
-%hook CommonMessageCellView
+// Hook BaseMsgContentViewController - 在显示菜单前捕获消息
+%hook BaseMsgContentViewController
 
-- (void)setM_viewModel:(id)viewModel {
+- (void)willShowMenuController:(id)controller inMsgWrap:(CMessageWrap *)msgWrap {
+    NSLog(@"[TaobaoJump] 🎯 willShowMenuController 被调用");
+    
     %orig;
     
     if (!isTaobaoJumpEnabled()) {
+        NSLog(@"[TaobaoJump] ⏸️ 功能未启用");
         return;
     }
     
-    // 获取消息内容
-    if ([viewModel isKindOfClass:%c(BaseMessageViewModel)]) {
-        BaseMessageViewModel *msgViewModel = (BaseMessageViewModel *)viewModel;
-        CMessageWrap *msgWrap = [msgViewModel messageWrap];
-        if (msgWrap) {
-            NSString *content = [msgWrap m_nsContent];
-            if (content && content.length > 0) {
-                g_currentMessageContent = content;
-                NSLog(@"[TaobaoJump] 📝 捕获消息内容: %@", content);
-            }
+    // 从 msgWrap 中获取消息内容
+    if (msgWrap) {
+        NSString *content = [msgWrap m_nsContent];
+        if (content && content.length > 0) {
+            g_currentMessageContent = content;
+            NSLog(@"[TaobaoJump] 📝 成功捕获消息内容: %@", content);
+        } else {
+            NSLog(@"[TaobaoJump] ⚠️ 消息内容为空");
         }
+    } else {
+        NSLog(@"[TaobaoJump] ⚠️ msgWrap 为空");
     }
-}
-
-- (void)onLongTouch {
-    NSLog(@"[TaobaoJump] 👆 检测到长按");
-    
-    if (!isTaobaoJumpEnabled()) {
-        %orig;
-        return;
-    }
-    
-    // 尝试直接获取消息内容
-    if ([self respondsToSelector:@selector(m_viewModel)]) {
-        id viewModel = [self performSelector:@selector(m_viewModel)];
-        if (viewModel && [viewModel respondsToSelector:@selector(messageWrap)]) {
-            id msgWrap = [viewModel performSelector:@selector(messageWrap)];
-            if (msgWrap && [msgWrap respondsToSelector:@selector(m_nsContent)]) {
-                NSString *content = [msgWrap performSelector:@selector(m_nsContent)];
-                if (content && content.length > 0) {
-                    g_currentMessageContent = content;
-                    NSLog(@"[TaobaoJump] 📝 从 onLongTouch 捕获消息: %@", content);
-                }
-            }
-        }
-    }
-    
-    %orig;
 }
 
 %end

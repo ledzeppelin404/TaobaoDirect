@@ -129,15 +129,23 @@ static TaobaoJumpHandler *g_taobaoHandler = nil;
     }
     
     @try {
-        // 打印第一个菜单项的类名，看看是什么类型
+        // 打印第一个菜单项的类名和属性，看看是什么类型
         if (items.count > 0) {
             id firstItem = items[0];
             NSLog(@"[TaobaoJump] 🔍 菜单项类型: %@", NSStringFromClass([firstItem class]));
             
-            // 尝试获取菜单项的属性
-            if ([firstItem respondsToSelector:@selector(m_title)]) {
-                NSString *title = [firstItem performSelector:@selector(m_title)];
-                NSLog(@"[TaobaoJump] 🔍 第一个菜单项标题: %@", title);
+            // 尝试各种可能的属性名
+            if ([firstItem respondsToSelector:@selector(m_nsTitle)]) {
+                NSString *title = [firstItem performSelector:@selector(m_nsTitle)];
+                NSLog(@"[TaobaoJump] 🔍 m_nsTitle: %@", title);
+            }
+            if ([firstItem respondsToSelector:@selector(m_uiTarget)]) {
+                id target = [firstItem performSelector:@selector(m_uiTarget)];
+                NSLog(@"[TaobaoJump] 🔍 m_uiTarget: %@", target);
+            }
+            if ([firstItem respondsToSelector:@selector(m_selectorName)]) {
+                id selector = [firstItem performSelector:@selector(m_selectorName)];
+                NSLog(@"[TaobaoJump] 🔍 m_selectorName: %@", selector);
             }
         }
         
@@ -157,15 +165,18 @@ static TaobaoJumpHandler *g_taobaoHandler = nil;
             // 创建一个新的菜单项对象
             id taobaoItem = [[itemClass alloc] init];
             
-            // 尝试设置属性
-            if ([taobaoItem respondsToSelector:@selector(setM_title:)]) {
-                [taobaoItem performSelector:@selector(setM_title:) withObject:@"跳转淘宝"];
+            // 尝试设置各种可能的属性
+            if ([taobaoItem respondsToSelector:@selector(setM_nsTitle:)]) {
+                [taobaoItem performSelector:@selector(setM_nsTitle:) withObject:@"跳转淘宝"];
+                NSLog(@"[TaobaoJump] ✅ 设置 m_nsTitle");
             }
-            if ([taobaoItem respondsToSelector:@selector(setM_target:)]) {
-                [taobaoItem performSelector:@selector(setM_target:) withObject:g_taobaoHandler];
+            if ([taobaoItem respondsToSelector:@selector(setM_uiTarget:)]) {
+                [taobaoItem performSelector:@selector(setM_uiTarget:) withObject:g_taobaoHandler];
+                NSLog(@"[TaobaoJump] ✅ 设置 m_uiTarget");
             }
-            if ([taobaoItem respondsToSelector:@selector(setM_action:)]) {
-                [taobaoItem performSelector:@selector(setM_action:) withObject:NSStringFromSelector(@selector(jumpToTaobao))];
+            if ([taobaoItem respondsToSelector:@selector(setM_selectorName:)]) {
+                [taobaoItem performSelector:@selector(setM_selectorName:) withObject:NSStringFromSelector(@selector(jumpToTaobao))];
+                NSLog(@"[TaobaoJump] ✅ 设置 m_selectorName");
             }
             
             // 在第一个位置插入菜单项

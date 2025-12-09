@@ -1,0 +1,38 @@
+name: Build WeChat Enhance
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Theos
+      run: |
+        # 安装 Theos
+        sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
+        sudo chown -R $(whoami):staff /opt/theos
+        
+    - name: Install dependencies
+      run: |
+        # 安装必要的工具
+        brew install ldid
+        
+    - name: Build dylib
+      run: |
+        cd TBcs-main
+        make
+        
+    - name: Upload dylib
+      uses: actions/upload-artifact@v3
+      with:
+        name: WeChatEnhance-dylib
+        path: TBcs-main/.theos/obj/*.dylib

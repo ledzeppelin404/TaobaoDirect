@@ -184,23 +184,38 @@ static TaobaoJumpHandler *g_taobaoHandler = nil;
             
             // 尝试方法1: initWithTitle:icon:target:action:
             if ([itemClass instancesRespondToSelector:@selector(initWithTitle:icon:target:action:)]) {
-                // 创建购物车图标（使用 emoji 作为图标）
+                // 创建购物车图标 - 尝试使用 SF Symbols
                 UIImage *icon = nil;
                 
-                // 尝试创建一个带购物车 emoji 的图片
                 @try {
-                    UIGraphicsBeginImageContextWithOptions(CGSizeMake(30, 30), NO, 0.0);
-                    NSDictionary *attributes = @{
-                        NSFontAttributeName: [UIFont systemFontOfSize:24],
-                    };
-                    [@"🛒" drawAtPoint:CGPointMake(3, 1) withAttributes:attributes];
-                    icon = UIGraphicsGetImageFromCurrentImageContext();
-                    UIGraphicsEndImageContext();
+                    // 方案1: 尝试使用 SF Symbols 的 cart.fill 图标
+                    if (@available(iOS 13.0, *)) {
+                        icon = [UIImage systemImageNamed:@"cart.fill"];
+                        if (icon) {
+                            // 配置图标大小和颜色
+                            UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightRegular];
+                            icon = [icon imageWithConfiguration:config];
+                            icon = [icon imageWithTintColor:[UIColor labelColor] renderingMode:UIImageRenderingModeAlwaysTemplate];
+                            NSLog(@"[TaobaoJump] ✅ 使用 SF Symbols cart.fill 图标");
+                        }
+                    }
+                    
+                    // 方案2: 如果 SF Symbols 不行，用 emoji
+                    if (!icon) {
+                        UIGraphicsBeginImageContextWithOptions(CGSizeMake(30, 30), NO, 0.0);
+                        NSDictionary *attributes = @{
+                            NSFontAttributeName: [UIFont systemFontOfSize:24],
+                        };
+                        [@"🛒" drawAtPoint:CGPointMake(3, 1) withAttributes:attributes];
+                        icon = UIGraphicsGetImageFromCurrentImageContext();
+                        UIGraphicsEndImageContext();
+                        NSLog(@"[TaobaoJump] ⚠️ 降级使用 emoji 图标");
+                    }
                 } @catch (NSException *e) {
-                    NSLog(@"[TaobaoJump] ⚠️ 创建图标失败: %@", e);
+                    NSLog(@"[TaobaoJump] ❌ 创建图标失败: %@", e);
                 }
                 
-                taobaoItem = [[itemClass alloc] initWithTitle:@"" 
+                taobaoItem = [[itemClass alloc] initWithTitle:@"淘宝" 
                                                          icon:icon 
                                                        target:g_taobaoHandler 
                                                        action:@selector(jumpToTaobao)];

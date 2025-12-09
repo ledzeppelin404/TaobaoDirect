@@ -65,47 +65,12 @@ static BOOL isTaobaoJumpEnabled() {
 %end
 
 // Hook MMMenuController - 这是关键！
-%hook MMMenuController
+// 全局对象，用于处理跳转
+@interface TaobaoJumpHandler : NSObject
+@end
 
-- (void)setMenuItems:(NSArray *)items {
-    NSLog(@"[TaobaoJump] 🎯 MMMenuController setMenuItems 被调用，原始菜单项数: %lu", (unsigned long)items.count);
-    
-    // 检查功能是否启用
-    if (!isTaobaoJumpEnabled()) {
-        NSLog(@"[TaobaoJump] ⏸️ 功能未启用");
-        %orig;
-        return;
-    }
-    
-    // 检查是否有消息内容
-    if (!g_currentMessageContent || g_currentMessageContent.length == 0) {
-        NSLog(@"[TaobaoJump] ⚠️ 没有消息内容，跳过添加菜单");
-        %orig;
-        return;
-    }
-    
-    // 创建新的菜单项数组
-    NSMutableArray *newItems = [items mutableCopy];
-    
-    // 创建"跳转淘宝"菜单项
-    MMMenuItem *taobaoItem = [%c(MMMenuItem) itemWithTitle:@"跳转淘宝" 
-                                                    target:self 
-                                                    action:@selector(jumpToTaobao)];
-    
-    if (taobaoItem) {
-        // 在第一个位置插入菜单项
-        [newItems insertObject:taobaoItem atIndex:0];
-        NSLog(@"[TaobaoJump] ✅ 成功添加淘宝跳转菜单项，新菜单项数: %lu", (unsigned long)newItems.count);
-    } else {
-        NSLog(@"[TaobaoJump] ❌ 创建菜单项失败");
-    }
-    
-    // 调用原始方法，传入新的菜单项数组
-    %orig(newItems);
-}
+@implementation TaobaoJumpHandler
 
-// 添加新方法：跳转到淘宝
-%new
 - (void)jumpToTaobao {
     NSLog(@"[TaobaoJump] 🚀 跳转淘宝被点击");
     
@@ -138,6 +103,60 @@ static BOOL isTaobaoJumpEnabled() {
     
     // 清空消息内容
     g_currentMessageContent = nil;
+}
+
+@end
+
+static TaobaoJumpHandler *g_taobaoHandler = nil;
+
+%hook MMMenuController
+
+- (void)setMenuItems:(NSArray *)items {
+    NSLog(@"[TaobaoJump] 🎯 MMMenuController setMenuItems 被调用，原始菜单项数: %lu", (unsigned long)items.count);
+    
+    // 检查功能是否启用
+    if (!isTaobaoJumpEnabled()) {
+        NSLog(@"[TaobaoJump] ⏸️ 功能未启用");
+        %orig;
+        return;
+    }
+    
+    // 检查是否有消息内容
+    if (!g_currentMessageContent || g_currentMessageContent.length == 0) {
+        NSLog(@"[TaobaoJump] ⚠️ 没有消息内容，跳过添加菜单");
+        %orig;
+        return;
+    }
+    
+    @try {
+        // 创建新的菜单项数组
+        NSMutableArray *newItems = [items mutableCopy];
+        
+        // 确保 handler 存在
+        if (!g_taobaoHandler) {
+            g_taobaoHandler = [[TaobaoJumpHandler alloc] init];
+        }
+        
+        // 创建"跳转淘宝"菜单项
+        MMMenuItem *taobaoItem = [%c(MMMenuItem) itemWithTitle:@"跳转淘宝" 
+                                                        target:g_taobaoHandler 
+                                                        action:@selector(jumpToTaobao)];
+        
+        if (taobaoItem) {
+            // 在第一个位置插入菜单项
+            [newItems insertObject:taobaoItem atIndex:0];
+            NSLog(@"[TaobaoJump] ✅ 成功添加淘宝跳转菜单项，新菜单项数: %lu", (unsigned long)newItems.count);
+            
+            // 调用原始方法，传入新的菜单项数组
+            %orig(newItems);
+        } else {
+            NSLog(@"[TaobaoJump] ❌ 创建菜单项失败");
+            %orig;
+        }
+    } @catch (NSException *exception) {
+        NSLog(@"[TaobaoJump] ❌ 异常: %@", exception);
+        %orig;
+    }
 }
 
 %end

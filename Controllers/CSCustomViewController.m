@@ -24,8 +24,8 @@ static CGFloat const kWXIDFontSize = 14.0f;            // 微信号字体大小
 
 // 头像缓存Key
 static NSString * const kAvatarCacheKey = @"com.wechat.tweak.avatar.cache";
-// 卡密激活标记（替代用户协议）
-static NSString * const kCardKeyActivatedKey = @"com.wechat.tweak.cardkey.activated.v1";
+// 用户协议同意标记
+static NSString * const kUserAgreementAcceptedKey = @"com.wechat.tweak.user.agreement.accepted.v3";
 
 @interface CSCustomViewController () <UITableViewDelegate, UITableViewDataSource>
 @property (nonatomic, strong) UITableView *tableView;
@@ -68,12 +68,24 @@ static NSString * const kCardKeyActivatedKey = @"com.wechat.tweak.cardkey.activa
     [self preloadAvatarImage];
 }
 
-// 添加viewDidAppear方法，在视图显示后检查卡密激活
+// 添加viewDidAppear方法，在视图显示后检查用户协议和卡密
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     
-    // 检查是否已激活
-    [self checkCardKeyActivation];
+    // 先检查用户协议，再检查卡密
+    [self checkUserAgreement];
+}
+
+// 检查用户是否已同意使用声明
+- (void)checkUserAgreement {
+    BOOL hasAccepted = [[NSUserDefaults standardUserDefaults] boolForKey:kUserAgreementAcceptedKey];
+    if (!hasAccepted) {
+        // 如果用户尚未同意，显示声明弹窗
+        [self showUserAgreementAlert];
+    } else {
+        // 已同意协议，检查卡密激活
+        [self checkCardKeyActivation];
+    }
 }
 
 // 检查卡密激活状态
@@ -82,6 +94,140 @@ static NSString * const kCardKeyActivatedKey = @"com.wechat.tweak.cardkey.activa
         // 如果未激活，显示卡密验证弹窗
         [self showCardKeyAlert];
     }
+}
+
+// 显示用户协议弹窗
+- (void)showUserAgreementAlert {
+    // 使用UIAlertController创建弹窗
+    UIAlertController *alertController = [UIAlertController 
+                                          alertControllerWithTitle:@"用户使用声明" 
+                                          message:[self userAgreementText]
+                                          preferredStyle:UIAlertControllerStyleAlert];
+    
+    // 添加继续按钮 - 第一步只显示协议内容
+    self.continueAction = [UIAlertAction 
+                          actionWithTitle:@"请等待8秒" 
+                          style:UIAlertActionStyleDefault 
+                          handler:^(UIAlertAction * _Nonnull action) {
+        // 用户点击继续后，显示第二步确认界面
+        [self showAgreementConfirmAlert];
+    }];
+    
+    // 禁用继续按钮，倒计时后启用
+    self.continueAction.enabled = NO;
+    
+    [alertController addAction:self.continueAction];
+    
+    // 显示弹窗
+    [self presentViewController:alertController animated:YES completion:^{
+        // 弹窗显示后，开始倒计时
+        self.countdownSeconds = 8;
+        self.countdownTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                                              target:self
+                                                            selector:@selector(updateCountdown)
+                                                            userInfo:nil
+                                                             repeats:YES];
+    }];
+}
+
+// 更新倒计时
+- (void)updateCountdown {
+    self.countdownSeconds--;
+    
+    if (self.countdownSeconds <= 0) {
+        // 倒计时结束，停止计时器
+        [self.countdownTimer invalidate];
+        self.countdownTimer = nil;
+        
+        // 启用继续按钮
+        self.continueAction.enabled = YES;
+        
+        // 更新按钮标题
+        [self.continueAction setValue:@"继续" forKey:@"title"];
+    } else {
+        // 更新按钮标题，显示剩余时间
+        NSString *title = [NSString stringWithFormat:@"请等待%ld秒", (long)self.countdownSeconds];
+        [self.continueAction setValue:title forKey:@"title"];
+    }
+}
+
+// 显示确认输入界面 - 第二步
+- (void)showAgreementConfirmAlert {
+    UIAlertController *confirmAlert = [UIAlertController 
+                                       alertControllerWithTitle:@"确认同意" 
+                                       message:@"请输入\"我已阅读并同意\"以确认您已阅读并同意用户协议"
+                                       preferredStyle:UIAlertControllerStyleAlert];
+    
+    // 添加文本框，要求用户输入"我已阅读并同意"
+    [confirmAlert addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+        textField.placeholder = @"请输入\"我已阅读并同意\"";
+        textField.clearButtonMode = UITextFieldViewModeWhileEditing;
+        textField.borderStyle = UITextBorderStyleRoundedRect;
+    }];
+    
+    // 添加同意按钮
+    UIAlertAction *agreeAction = [UIAlertAction 
+                                  actionWithTitle:@"确认" 
+                                  style:UIAlertActionStyleDefault 
+                                  handler:^(UIAlertAction * _Nonnull action) {
+        // 获取用户输入的文本
+        UITextField *textField = confirmAlert.textFields.firstObject;
+        NSString *userInput = textField.text;
+        
+        // 验证用户输入是否为"我已阅读并同意"
+        if ([userInput isEqualToString:@"我已阅读并同意"]) {
+            // 保存用户同意状态
+            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:kUserAgreementAcceptedKey];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+            
+            // 同意后检查卡密激活
+            [self checkCardKeyActivation];
+        } else {
+            // 如果输入不正确，重新显示弹窗，并提示用户输入错误
+            UIAlertController *errorAlert = [UIAlertController
+                                             alertControllerWithTitle:@"输入错误"
+                                             message:@"请正确输入\"我已阅读并同意\"才能继续使用"
+                                             preferredStyle:UIAlertControllerStyleAlert];
+            
+            [errorAlert addAction:[UIAlertAction actionWithTitle:@"重试"
+                                                           style:UIAlertActionStyleDefault
+                                                         handler:^(UIAlertAction * _Nonnull action) {
+                // 重新显示确认界面
+                [self showAgreementConfirmAlert];
+            }]];
+            
+            [self presentViewController:errorAlert animated:YES completion:nil];
+        }
+    }];
+    
+    // 添加返回按钮，返回到协议阅读界面
+    UIAlertAction *backAction = [UIAlertAction 
+                                actionWithTitle:@"返回" 
+                                style:UIAlertActionStyleDefault 
+                                handler:^(UIAlertAction * _Nonnull action) {
+        // 返回到协议阅读界面
+        [self showUserAgreementAlert];
+    }];
+    
+    [confirmAlert addAction:agreeAction];
+    [confirmAlert addAction:backAction];
+    
+    // 显示弹窗
+    [self presentViewController:confirmAlert animated:YES completion:nil];
+}
+
+// 用户协议文本
+- (NSString *)userAgreementText {
+    return @"尊敬的用户：\n\n"
+           @"欢迎使用本微信插件功能。使用本插件前，请您仔细阅读以下声明：\n\n"
+           @"1. 本插件由愫茶开发，仅在Telegram频道发布。\n\n"
+           @"2. 二次发布必须保留原始开发者署名，改名干嘛？自己不会写啊？？\n\n"
+           @"3. 本插件仅供个人学习研究使用，不得用于任何商业用途。\n\n"
+           @"4. 严禁恶意改名盈利，所有未经授权进行商业用途的行为将被永久拉黑。\n\n"
+           @"5. 使用本插件可能违反微信软件的使用条款，可能导致您的微信账号被封禁或限制。\n\n"
+           @"6. 您应自行承担使用本插件的全部风险和法律责任，开发者不对因使用本插件导致的任何直接或间接损失负责。\n\n"
+           @"7. 严禁利用本插件从事任何违法违规活动，包括但不限于侵犯他人隐私、进行网络诈骗等。\n\n"
+           @"8. 开发者保留随时修改、中断或终止本插件的权利，无需事先通知。";
 }
 
 // 显示卡密验证弹窗
